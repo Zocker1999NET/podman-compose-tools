@@ -26,12 +26,14 @@ from __future__ import annotations
 import argparse
 
 from functools import cache, cached_property, wraps
+import json
 import os
 from pathlib import Path
 import shlex
 from subprocess import CompletedProcess, PIPE, run
 import sys
 from typing import (
+    Any,
     Callable,
     Dict,
     Iterable,
@@ -125,6 +127,21 @@ PODMAN_COMPOSE_EXEC = CommandArgs(
 # === helpers
 
 
+@define()
+class CompletedExec:
+    completed_process: CompletedProcess
+
+    @property
+    def returncode(self) -> int:
+        return self.completed_process.returncode
+
+    def check_returncode(self) -> None:
+        return self.completed_process.check_returncode()
+
+    def to_json(self) -> Mapping[str, Any]:
+        return json.loads(self.completed_process.stdout)
+
+
 def filter_cmds(command: Iterable[Optional[str]]) -> CommandArgs:
     return CommandArgs([arg for arg in command if arg is not None])
 
@@ -135,18 +152,19 @@ def combine_cmds(*commands: CommandArgs | List[Optional[str]]) -> CommandArgs:
 
 def exec_cmd(
     command: CommandArgs, check: bool = True, capture_stdout: bool = True
-) -> CompletedProcess:
-    res = run(
-        args=command,
-        check=check,
-        shell=False,
-        stdout=PIPE if capture_stdout else None,
+) -> CompletedExec:
+    return CompletedExec(
+        run(
+            args=command,
+            check=check,
+            shell=False,
+            stdout=PIPE if capture_stdout else None,
+        )
     )
-    return res
 
 
 def process_tester(
-    exec: Callable[[CommandArgs], CompletedProcess]
+    exec: Callable[[CommandArgs], CompletedExec]
 ) -> Callable[[CommandArgs], bool]:
     return lambda command: exec(command).returncode == 0
 
@@ -178,7 +196,7 @@ def search_shell() -> str:
 
 def exec_shell(
     shell_cmd: ShellCommand, check: bool = True, capture_stdout: bool = True
-) -> CompletedProcess:
+) -> CompletedExec:
     return exec_cmd(
         CommandArgs([search_shell(), "-c", shell_cmd]),
         check=check,
@@ -242,7 +260,7 @@ class PodmanClient:
         self,
         command: CommandArgs,
         check: bool = True,
-    ) -> CompletedProcess:
+    ) -> CompletedExec:
         return exec_cmd(
             command=CommandArgs(self.podman_cmd + command),
             check=check,
@@ -253,7 +271,7 @@ class PodmanClient:
         self,
         command: CommandArgs,
         check: bool = True,
-    ) -> CompletedProcess:
+    ) -> CompletedExec:
         return exec_cmd(
             command=CommandArgs(self.podman_compose_cmd + command),
             check=check,
@@ -330,7 +348,7 @@ class ComposeFile:
         self,
         command: CommandArgs,
         check: bool = True,
-    ) -> CompletedProcess:
+    ) -> CompletedExec:
         return self.podman.exec_compose(
             command=combine_cmds(
                 [f"--project-name=self.project_name"],
@@ -364,7 +382,7 @@ class ComposeContainer:
         command: CommandArgs,
         check: bool = True,
         workdir: Optional[str] = None,
-    ) -> CompletedProcess:
+    ) -> CompletedExec:
         return self.compose.podman.exec_podman(
             command=combine_cmds(
                 [
