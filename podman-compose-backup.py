@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 
-# TODO enable disabling volume backup (for example for caches) with further label
 # TODO implement backup single vol
 # TODO implement restore single vol
 # TODO decide upon depends_on and volume mounts which containers must be shut down and which turned on for single volume backup (def)
@@ -141,6 +140,7 @@ def parse_bool(val: str | bool) -> bool:
 @define(kw_only=True)
 class VolumeBackupConfig:
     # === Backups
+    enable: bool = field(converter=parse_bool, default=True)
     container: Optional[str] = field(default=None)
     image: str = field(default=DEFAULT_BACKUP_IMAGE)
     mount_target: str = field(default=DEFAULT_MOUNT_TARGET)
