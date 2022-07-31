@@ -311,21 +311,24 @@ class ComposeContainer:
     def depends_on(self) -> Sequence[ComposeContainer]:
         return [self.compose.services[name] for name in self.base.get("depends_on", [])]
 
-    def exec_cmd(
+    def exec(
         self,
         command: CommandArgs,
+        check: bool = True,
         workdir: Optional[str] = None,
-    ) -> CommandArgs:
-        return combine_cmds(
-            PODMAN_EXEC,
-            [
-                "container",
-                "exec",
-                "--interactive=false",
-                None if workdir is None else f"--workdir={workdir}",
-                self.container_name,
-            ],
-            command,
+    ) -> CompletedProcess:
+        return self.compose.podman.exec_podman(
+            command=combine_cmds(
+                [
+                    "container",
+                    "exec",
+                    "--interactive=false",
+                    None if workdir is None else f"--workdir={workdir}",
+                    self.container_name,
+                ],
+                command,
+            ),
+            check=check,
         )
 
 
