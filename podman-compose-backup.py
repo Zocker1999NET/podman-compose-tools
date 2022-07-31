@@ -314,16 +314,16 @@ class ComposeContainer:
     def exec_cmd(
         self, command: CommandArgs, workdir: Optional[str] = None
     ) -> CommandArgs:
-        return CommandArgs(
-            PODMAN_EXEC
-            + [
+        return combine_cmds(
+            PODMAN_EXEC,
+            [
                 "container",
                 "exec",
                 "--interactive=false",
                 None if workdir is None else f"--workdir={workdir}",
                 self.container_name,
-            ]
-            + command
+            ],
+            command,
         )
 
 
