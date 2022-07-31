@@ -195,12 +195,12 @@ class ComposeFile:
                 content = normalize(content)
                 content = rec_subs(content, self.environ)
                 rec_merge(compose, content)
-        if not compose.get("version", "").startswith("3."):
+        self.compose = compose
+        if not self.version.startswith("3."):
             error(
                 f"Compose file version is not supported, only support 3.X compose files"
             )
             sys.exit(1)
-        self.compose = compose
 
     @property
     def version(self) -> ComposeVersion:
