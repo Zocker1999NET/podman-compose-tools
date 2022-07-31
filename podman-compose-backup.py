@@ -284,12 +284,18 @@ class ComposeFile:
             for name, opts in self.__volumes_defs.items()
         }
 
-    @property
-    def compose_cmd(self) -> CommandArgs:
-        return CommandArgs(
-            PODMAN_COMPOSE_EXEC
-            + [f"--project-name=self.project_name"]
-            + [f"--file={file}" for file in self.compose_files]
+    def exec_compose(
+        self,
+        command: CommandArgs,
+        check: bool = True,
+    ) -> CompletedProcess:
+        return self.podman.exec_compose(
+            command=combine_cmds(
+                [f"--project-name=self.project_name"],
+                [f"--file={file}" for file in self.compose_files],
+                command,
+            ),
+            check=check,
         )
 
 
@@ -383,7 +389,6 @@ def parse_args(args: Sequence[str]) -> argparse.Namespace:
 def exec(given_args: Sequence[str]):
     args = parse_args(args=given_args)
     compose = ComposeFile(*args.file, project_name=args.project_name)
-    print(compose.compose_cmd)
 
 
 def cli(args: Sequence[str]):
