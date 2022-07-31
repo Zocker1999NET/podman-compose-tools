@@ -176,7 +176,9 @@ class ComposeFile:
     compose_files: Sequence[Path]
 
     def __init__(
-        self, *compose_files: Path, project_name: Optional[ProjectName] = None
+        self,
+        *compose_files: Path,
+        project_name: Optional[ProjectName] = None,
     ):
         self.compose_files = compose_files
         ref_dir = compose_files[0].parent
