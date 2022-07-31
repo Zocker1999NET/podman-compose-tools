@@ -25,10 +25,11 @@
 from __future__ import annotations
 import argparse
 
-from functools import cached_property, wraps
+from functools import cache, cached_property, wraps
 import os
 from pathlib import Path
 import shlex
+from subprocess import CompletedProcess, PIPE, run
 import sys
 from typing import (
     Dict,
@@ -129,6 +130,18 @@ def filter_cmds(command: Iterable[Optional[str]]) -> CommandArgs:
 
 def combine_cmds(*commands: CommandArgs | List[Optional[str]]) -> CommandArgs:
     return CommandArgs([arg for cmd in commands for arg in filter_cmds(cmd)])
+
+
+def exec_cmd(
+    command: CommandArgs, check: bool = True, capture_stdout: bool = True
+) -> CompletedProcess:
+    res = run(
+        args=command,
+        check=check,
+        shell=False,
+        stdout=PIPE if capture_stdout else None,
+    )
+    return res
 
 
 @wraps(print)
