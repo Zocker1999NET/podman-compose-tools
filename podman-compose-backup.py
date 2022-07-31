@@ -312,7 +312,9 @@ class ComposeContainer:
         return [self.compose.services[name] for name in self.base.get("depends_on", [])]
 
     def exec_cmd(
-        self, command: CommandArgs, workdir: Optional[str] = None
+        self,
+        command: CommandArgs,
+        workdir: Optional[str] = None,
     ) -> CommandArgs:
         return combine_cmds(
             PODMAN_EXEC,
