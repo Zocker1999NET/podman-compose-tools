@@ -97,6 +97,7 @@ DEFAULT_BACKUP_CMD = "tar -cf - ."
 DEFAULT_RESTORE_CMD = "tar -xf -"
 
 
+# List of POSIX shells which shall be used
 DETECTED_SHELLS = [
     "/usr/bin/bash",
     "/bin/bash",
