@@ -1,0 +1,43 @@
+version: "3.3"
+
+services:
+  database:
+    image: docker.io/library/mariadb
+
+volumes:
+  my_vol:
+    labels:
+      # - if executed inside a service, commands have the same environment vars available
+      # - the volume will be cleared before restoring
+      # - the command will always be executed where the volume is mounted
+      # - you can access secrets in files by using $(cat $SECRET_FILE)
+
+      # === Backups
+      # - backup/restore commands need to write to STDOUT / read from STDIN
+
+      # container/service to run commands in (takes precedence over .image)
+      # service will ignore .stop if required
+      work.banananet.podman.backup.container: database
+      # image to use to run commands (by default docker.io/library/debian:stable)
+      work.banananet.podman.backup.image: NONE
+      # mount target if backup is run in the image (defaults to /_volume)
+      work.banananet.podman.backup.mount-target: /myvol
+      # will stop compose to backup/restore volume (true/false, true by default)
+      work.banananet.podman.backup.stop: "true"
+      # backup command, executed in .container/.image
+      work.banananet.podman.backup.backup-cmd: >-
+        mysqldump --all-databases
+      # restore command, executed in .container/.image
+      work.banananet.podman.backup.restore-cmd: >-
+        mysql --user=root --password=$MARIADB_ROOT_PASSWORD
+
+      # === Compressing
+      # - both commands must read from STDIN and write to STDOUT
+      # - you may also compress inside the orignal container, this allows to compress outside or using another image
+
+      # image to run compress commands in (defaults to host)
+      work.banananet.podman.backup.compress-image:  # meaning host
+      # command to compress backup (none by default)
+      work.banananet.podman.backup.compress-cmd: gzip -9 -
+      # command to decompress backup on restore ("<.compress-cmd> -d" or none by default)
+      work.banananet.podman.backup.decompress-cmd: gzip -9 -d -

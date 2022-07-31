@@ -1,0 +1,7 @@
+attrs
+podman-compose
+pyyaml
+
+# dev
+black
+mypy
