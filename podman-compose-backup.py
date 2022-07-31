@@ -53,7 +53,7 @@ import yaml
 
 ProjectName = NewType("ProjectName", str)
 ShellCommand = NewType("ShellCommand", str)
-CommandArgs = NewType("CommandArgs", List[Optional[str]])
+CommandArgs = NewType("CommandArgs", List[str])
 
 ComposeVersion = NewType("ComposeVersion", str)
 ContainerName = NewType("ContainerName", str)
