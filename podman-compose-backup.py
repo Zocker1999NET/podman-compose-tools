@@ -190,8 +190,38 @@ class VolumeBackupConfig:
             self.decompress_cmd = f"{self.compress_cmd} -d"
 
 
+@define(kw_only=True)
+class PodmanClient:
+
+    podman_cmd: CommandArgs
+    podman_compose_cmd: CommandArgs
+
+    def exec_podman(
+        self,
+        command: CommandArgs,
+        check: bool = True,
+    ) -> CompletedProcess:
+        return exec_cmd(
+            command=CommandArgs(self.podman_cmd + command),
+            check=check,
+            capture_stdout=True,
+        )
+
+    def exec_compose(
+        self,
+        command: CommandArgs,
+        check: bool = True,
+    ) -> CompletedProcess:
+        return exec_cmd(
+            command=CommandArgs(self.podman_compose_cmd + command),
+            check=check,
+            capture_stdout=True,
+        )
+
+
 class ComposeFile:
 
+    podman: PodmanClient
     project_name: ProjectName
     environ: Dict[str, str]
     compose: ComposeDef
@@ -199,9 +229,11 @@ class ComposeFile:
 
     def __init__(
         self,
+        podman: PodmanClient,
         *compose_files: Path,
         project_name: Optional[ProjectName] = None,
     ):
+        self.podman = podman
         self.compose_files = compose_files
         ref_dir = compose_files[0].parent
         self.project_name = project_name or ProjectName(ref_dir.name)
