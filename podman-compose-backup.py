@@ -280,7 +280,7 @@ class ComposeVolume:
     name: VolumeName
     base: ComposeVolumeDef
 
-    @property
+    @cached_property
     def public_name(self) -> PublicVolumeName:
         return self.base.get(
             "name", PublicVolumeName(f"{self.compose.project_name}_{self.name}")
