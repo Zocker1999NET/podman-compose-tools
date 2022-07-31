@@ -32,6 +32,7 @@ import shlex
 from subprocess import CompletedProcess, PIPE, run
 import sys
 from typing import (
+    Callable,
     Dict,
     Iterable,
     List,
@@ -142,6 +143,47 @@ def exec_cmd(
         stdout=PIPE if capture_stdout else None,
     )
     return res
+
+
+def process_tester(
+    exec: Callable[[CommandArgs], CompletedProcess]
+) -> Callable[[CommandArgs], bool]:
+    return lambda command: exec(command).returncode == 0
+
+
+def search_shell_with(tester: Callable[[CommandArgs], bool]) -> str:
+    for shell in DETECTED_SHELLS:
+        command = CommandArgs([shell, "-c", "true"])
+        res = exec_cmd(command, check=False)
+        if tester(command):
+            return command[0]
+    # TODO specialize
+    raise Exception(
+        f"Could not find an acceptable shell on this host, searched for {DETECTED_SHELLS}"
+    )
+
+
+@cache
+def search_shell() -> str:
+    return search_shell_with(
+        process_tester(
+            lambda command: exec_cmd(
+                command=command,
+                check=False,
+                capture_stdout=False,
+            )
+        )
+    )
+
+
+def exec_shell(
+    shell_cmd: ShellCommand, check: bool = True, capture_stdout: bool = True
+) -> CompletedProcess:
+    return exec_cmd(
+        CommandArgs([search_shell(), "-c", shell_cmd]),
+        check=check,
+        capture_stdout=capture_stdout,
+    )
 
 
 @wraps(print)
