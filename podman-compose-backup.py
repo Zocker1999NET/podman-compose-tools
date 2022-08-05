@@ -54,6 +54,7 @@ from podman_compose_tools.defs.compose import (
     ServiceName,
     ContainerName,
     ComposeServiceDef,
+    ComposeServiceVolumeDef,
     VolumeName,
     PublicVolumeName,
     ComposeVolumeDef,
@@ -293,6 +294,13 @@ class ComposeService(ExecutorTarget):
     def depends_on(self) -> Sequence[ComposeService]:
         return [self.compose.services[name] for name in self.base.get("depends_on", [])]
 
+    @cached_property
+    def volume_mounts(self) -> Sequence[ComposeServiceVolume]:
+        return [
+            ComposeServiceVolume(service=self, volume_def=volume_def)
+            for volume_def in self.base.get("volumes", [])
+        ]
+
     def exec_cmd(
         self,
         command: CommandArgs,
@@ -330,6 +338,14 @@ class ComposeVolume:
         )
 
     @cached_property
+    def used_by(self) -> Sequence[ComposeServiceVolume]:
+        return [
+            service_vol
+            for service in self.compose.services.values()
+            for service_vol in service.volume_mounts
+        ]
+
+    @cached_property
     def backup_config(self) -> VolumeBackupConfig:
         return VolumeBackupConfig.from_labels(self.inspect()["Labels"])
 
@@ -347,6 +363,54 @@ class ComposeVolume:
                 check=True,
             ).to_json(),
         )
+
+
+class ComposeServiceVolume:
+
+    service: ComposeService
+    volume: ComposeVolume
+    read_only: bool
+
+    def __init__(
+        self,
+        *,
+        service: ComposeService,
+        volume_def: ComposeServiceVolumeDef,
+    ) -> None:
+        self.service = service
+        vol_name: VolumeName
+        if isinstance(volume_def, str):
+            values = volume_def.split(sep=":", maxsplit=2)
+            if len(values) == 1:
+                # implicit volume
+                # TODO specialize
+                raise Exception(f"Do not support implicit volumes: {volume_def!r}")
+            if len(values) == 2:
+                src, _ = values
+                mode = "rw"  # default
+            else:
+                src, _, mode = values
+            if mode not in {"ro", "rw"}:
+                # TODO specialize
+                raise Exception(f"Unsupported mode {mode!r} for volume {volume_def!r}")
+            if "/" in src:
+                # volume type: bind
+                # TODO specialize
+                raise Exception(
+                    f"Unsupported volume type 'bind' for volume {volume_def!r}"
+                )
+            # volume type: volume
+            vol_name = VolumeName(src)
+            self.read_only = mode == "ro"
+        else:
+            if volume_def["type"] != "volume":
+                # TODO specialize
+                raise Exception(
+                    f"Unsupported volume type {volume_def['type']!r} for volume"
+                )
+            vol_name = volume_def["source"]
+            self.read_only = volume_def.get("read_only", False)
+        self.volume = service.compose.volumes[vol_name]
 
 
 def parse_labels(labels: LabelDict) -> LabelDict:
