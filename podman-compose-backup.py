@@ -37,6 +37,7 @@ from typing import (
     Sequence,
     TypeAlias,
     TypedDict,
+    cast,
 )
 
 from attrs import define, field
@@ -88,6 +89,16 @@ class ComposeServiceDef(TypedDict, total=False):
 
 class ComposeVolumeDef(TypedDict, total=False):
     name: PublicVolumeName
+
+
+class VolumeInspectDef(TypedDict):
+    Name: PublicVolumeName
+    Driver: str
+    Mountpoint: str
+    CreatedAt: str  # ISO
+    Labels: LabelDict
+    Scope: str
+    Options: Mapping
 
 
 # === constants
@@ -319,6 +330,25 @@ class ComposeVolume:
     def public_name(self) -> PublicVolumeName:
         return self.base.get(
             "name", PublicVolumeName(f"{self.compose.project_name}_{self.name}")
+        )
+
+    @cached_property
+    def backup_config(self) -> VolumeBackupConfig:
+        return VolumeBackupConfig.from_labels(self.inspect()["Labels"])
+
+    def inspect(self) -> VolumeInspectDef:
+        return cast(
+            VolumeInspectDef,
+            self.compose.podman.exec.exec_cmd(
+                command=CommandArgs(
+                    [
+                        "volume",
+                        "inspect",
+                        self.public_name,
+                    ]
+                ),
+                check=True,
+            ).to_json(),
         )
 
 
