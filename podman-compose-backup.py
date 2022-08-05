@@ -28,6 +28,7 @@ import argparse
 from functools import cached_property, wraps
 import os
 from pathlib import Path, PurePath
+import shutil
 import sys
 from typing import (
     Dict,
@@ -102,18 +103,8 @@ DEFAULT_BACKUP_CMD = "tar -cf - ."
 DEFAULT_RESTORE_CMD = "tar -xf -"
 
 
-PODMAN_EXEC = ArgCommand(
-    [
-        "/usr/bin/env",
-        "podman",
-    ]
-)
-PODMAN_COMPOSE_EXEC = ArgCommand(
-    [
-        "/usr/bin/env",
-        "podman-compose",
-    ]
-)
+PODMAN_EXEC = shutil.which("podman")
+PODMAN_COMPOSE_EXEC = shutil.which("podman-compose")
 
 
 # === helpers
