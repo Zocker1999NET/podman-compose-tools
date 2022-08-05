@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Literal, NewType, Sequence, TypeAlias, TypedDict
 
+from .volume import VolumeName
+
 
 ServiceName = NewType("ServiceName", str)
 ContainerName = NewType("ContainerName", str)
@@ -33,7 +35,7 @@ class _VolumeNaturalConfig(TypedDict, total=False):
 
 class _VolumeNaturalRequired(TypedDict, total=True):
     type: Literal["volume"]
-    source: str
+    source: VolumeName
     target: str
 
 
