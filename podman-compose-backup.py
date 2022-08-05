@@ -245,9 +245,9 @@ class ComposeFile(ExecutorTarget):
         return self.compose.get("volumes", {})
 
     @cached_property
-    def services(self) -> Mapping[ServiceName, ComposeContainer]:
+    def services(self) -> Mapping[ServiceName, ComposeService]:
         return {
-            name: ComposeContainer(compose=self, name=name, base=opts or {})
+            name: ComposeService(compose=self, name=name, base=opts or {})
             for name, opts in self.__services_defs.items()
         }
 
@@ -279,7 +279,7 @@ class ComposeFile(ExecutorTarget):
 
 
 @define(kw_only=True)
-class ComposeContainer(ExecutorTarget):
+class ComposeService(ExecutorTarget):
 
     compose: ComposeFile
     name: ServiceName
@@ -293,7 +293,7 @@ class ComposeContainer(ExecutorTarget):
         )
 
     @cached_property
-    def depends_on(self) -> Sequence[ComposeContainer]:
+    def depends_on(self) -> Sequence[ComposeService]:
         return [self.compose.services[name] for name in self.base.get("depends_on", [])]
 
     def exec_cmd(
