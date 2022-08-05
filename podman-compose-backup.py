@@ -44,6 +44,16 @@ from attrs import define, field
 from podman_compose import normalize, rec_merge, rec_subs
 import yaml
 
+from podman_compose_tools.defs.compose import (
+    ComposeDef,
+    ComposeVersion,
+    ServiceName,
+    ContainerName,
+    ComposeServiceDef,
+    VolumeName,
+    PublicVolumeName,
+    ComposeVolumeDef,
+)
 from podman_compose_tools.executor import (
     ArgCommand,
     BinaryExecutor,
@@ -62,33 +72,8 @@ from podman_compose_tools.executor.base import (
 
 ProjectName = NewType("ProjectName", str)
 
-ComposeVersion = NewType("ComposeVersion", str)
-ContainerName = NewType("ContainerName", str)
-PublicVolumeName = NewType("PublicVolumeName", str)
-
-ServiceName = NewType("ServiceName", str)
-VolumeName = NewType("VolumeName", str)
 
 LabelDict: TypeAlias = Mapping[str, str]
-
-
-class _ComposeDefRequired(TypedDict):
-    _dirname: Path
-    version: ComposeVersion
-
-
-class ComposeDef(_ComposeDefRequired, total=False):
-    services: Mapping[ServiceName, ComposeServiceDef]
-    volumes: Mapping[VolumeName, Optional[ComposeVolumeDef]]
-
-
-class ComposeServiceDef(TypedDict, total=False):
-    container_name: ContainerName
-    depends_on: Sequence[ServiceName]
-
-
-class ComposeVolumeDef(TypedDict, total=False):
-    name: PublicVolumeName
 
 
 class VolumeInspectDef(TypedDict):
