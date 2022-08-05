@@ -7,6 +7,7 @@
 # TODO group decision for multiple/all volumes (at first, throw error if incompatible as backed up state might be inconsistent)
 # TODO store full backup (= all volumes) inside one (uncompressed) tar archive
 # TODO support env-files
+# TODO implement secrets
 # TODO throw error/hint on bind mounts (not supported for now)
 
 # TODO test with normal volume
@@ -15,7 +16,9 @@
 # TODO test with small nextcloud instance
 
 # TODO append compose and referenced files into tar for easy migration
-# TODO add support for restoring from easy migration tar archive
+# TODO support for restoring from easy migration tar archive
+# TODO support --podman-path / --podman-compose-path
+# TODO support --podman-args
 # TODO add profile support (if applicable), e.g. mysql/mariadb
 
 
