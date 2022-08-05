@@ -58,6 +58,9 @@ class ExecutorTarget(metaclass=abc.ABCMeta):
             )
         )
 
+    def convert_shell_command(self, shell_cmd: ShellCommandStr) -> CommandArgs:
+        return CommandArgs([self.found_shell, "-c", str(shell_cmd)])
+
     def exec_shell(
         self,
         *,
@@ -67,7 +70,7 @@ class ExecutorTarget(metaclass=abc.ABCMeta):
         work_dir: Optional[PurePath],
     ) -> CompletedExec:
         return self.exec_cmd(
-            command=CommandArgs([self.found_shell, "-c", shell_cmd]),
+            command=self.convert_shell_command(shell_cmd=shell_cmd),
             check=check,
             capture_stdout=capture_stdout,
             work_dir=work_dir,
