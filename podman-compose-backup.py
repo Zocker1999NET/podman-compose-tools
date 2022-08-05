@@ -23,21 +23,14 @@
 
 
 from __future__ import annotations
-import argparse
 
-from functools import cache, cached_property, wraps
-import json
+import argparse
+from functools import cached_property, wraps
 import os
-from pathlib import Path
-import shlex
-from subprocess import CompletedProcess, PIPE, run
+from pathlib import Path, PurePath
 import sys
 from typing import (
-    Any,
-    Callable,
     Dict,
-    Iterable,
-    List,
     Mapping,
     NewType,
     Optional,
@@ -50,13 +43,23 @@ from attrs import define, field
 from podman_compose import normalize, rec_merge, rec_subs
 import yaml
 
+from podman_compose_tools.executor import (
+    ArgCommand,
+    BinaryExecutor,
+    CompletedExec,
+    ExecutorTarget,
+    HostExecutor,
+)
+from podman_compose_tools.executor.base import (
+    combine_cmds,
+    CommandArgs,
+)
+
 
 # === custom types
 
 
 ProjectName = NewType("ProjectName", str)
-ShellCommand = NewType("ShellCommand", str)
-CommandArgs = NewType("CommandArgs", List[str])
 
 ComposeVersion = NewType("ComposeVersion", str)
 ContainerName = NewType("ContainerName", str)
@@ -102,21 +105,13 @@ DEFAULT_BACKUP_CMD = "tar -cf - ."
 DEFAULT_RESTORE_CMD = "tar -xf -"
 
 
-# List of POSIX shells which shall be used
-DETECTED_SHELLS = [
-    "/usr/bin/bash",
-    "/bin/bash",
-    "/usr/bin/sh",
-    "/bin/sh",
-]
-
-PODMAN_EXEC = CommandArgs(
+PODMAN_EXEC = ArgCommand(
     [
         "/usr/bin/env",
         "podman",
     ]
 )
-PODMAN_COMPOSE_EXEC = CommandArgs(
+PODMAN_COMPOSE_EXEC = ArgCommand(
     [
         "/usr/bin/env",
         "podman-compose",
@@ -127,81 +122,7 @@ PODMAN_COMPOSE_EXEC = CommandArgs(
 # === helpers
 
 
-@define()
-class CompletedExec:
-    completed_process: CompletedProcess
-
-    @property
-    def returncode(self) -> int:
-        return self.completed_process.returncode
-
-    def check_returncode(self) -> None:
-        return self.completed_process.check_returncode()
-
-    def to_json(self) -> Mapping[str, Any]:
-        return json.loads(self.completed_process.stdout)
-
-
-def filter_cmds(command: Iterable[Optional[str]]) -> CommandArgs:
-    return CommandArgs([arg for arg in command if arg is not None])
-
-
-def combine_cmds(*commands: CommandArgs | List[Optional[str]]) -> CommandArgs:
-    return CommandArgs([arg for cmd in commands for arg in filter_cmds(cmd)])
-
-
-def exec_cmd(
-    command: CommandArgs, check: bool = True, capture_stdout: bool = True
-) -> CompletedExec:
-    return CompletedExec(
-        run(
-            args=command,
-            check=check,
-            shell=False,
-            stdout=PIPE if capture_stdout else None,
-        )
-    )
-
-
-def process_tester(
-    exec: Callable[[CommandArgs], CompletedExec]
-) -> Callable[[CommandArgs], bool]:
-    return lambda command: exec(command).returncode == 0
-
-
-def search_shell_with(tester: Callable[[CommandArgs], bool]) -> str:
-    for shell in DETECTED_SHELLS:
-        command = CommandArgs([shell, "-c", "true"])
-        res = exec_cmd(command, check=False)
-        if tester(command):
-            return command[0]
-    # TODO specialize
-    raise Exception(
-        f"Could not find an acceptable shell on this host, searched for {DETECTED_SHELLS}"
-    )
-
-
-@cache
-def search_shell() -> str:
-    return search_shell_with(
-        process_tester(
-            lambda command: exec_cmd(
-                command=command,
-                check=False,
-                capture_stdout=False,
-            )
-        )
-    )
-
-
-def exec_shell(
-    shell_cmd: ShellCommand, check: bool = True, capture_stdout: bool = True
-) -> CompletedExec:
-    return exec_cmd(
-        CommandArgs([search_shell(), "-c", shell_cmd]),
-        check=check,
-        capture_stdout=capture_stdout,
-    )
+host = HostExecutor()
 
 
 @wraps(print)
@@ -253,33 +174,11 @@ class VolumeBackupConfig:
 @define(kw_only=True)
 class PodmanClient:
 
-    podman_cmd: CommandArgs
-    podman_compose_cmd: CommandArgs
-
-    def exec_podman(
-        self,
-        command: CommandArgs,
-        check: bool = True,
-    ) -> CompletedExec:
-        return exec_cmd(
-            command=CommandArgs(self.podman_cmd + command),
-            check=check,
-            capture_stdout=True,
-        )
-
-    def exec_compose(
-        self,
-        command: CommandArgs,
-        check: bool = True,
-    ) -> CompletedExec:
-        return exec_cmd(
-            command=CommandArgs(self.podman_compose_cmd + command),
-            check=check,
-            capture_stdout=True,
-        )
+    exec: BinaryExecutor = field(converter=lambda a: BinaryExecutor(a))
+    compose_exec: BinaryExecutor = field(converter=lambda a: BinaryExecutor(a))
 
 
-class ComposeFile:
+class ComposeFile(ExecutorTarget):
 
     podman: PodmanClient
     project_name: ProjectName
@@ -319,6 +218,10 @@ class ComposeFile:
             sys.exit(1)
 
     @property
+    def ref_dir(self) -> Path:
+        return self.compose["_dirname"]
+
+    @property
     def version(self) -> ComposeVersion:
         return self.compose.get("version", ComposeVersion(""))
 
@@ -344,23 +247,28 @@ class ComposeFile:
             for name, opts in self.__volumes_defs.items()
         }
 
-    def exec_compose(
+    def exec_cmd(
         self,
+        *,
         command: CommandArgs,
         check: bool = True,
+        capture_stdout: bool = False,
+        work_dir: Optional[PurePath] = None,
     ) -> CompletedExec:
-        return self.podman.exec_compose(
+        return super().exec_cmd(
             command=combine_cmds(
                 [f"--project-name=self.project_name"],
                 [f"--file={file}" for file in self.compose_files],
                 command,
             ),
             check=check,
+            capture_stdout=capture_stdout,
+            work_dir=work_dir or self.ref_dir,
         )
 
 
 @define(kw_only=True)
-class ComposeContainer:
+class ComposeContainer(ExecutorTarget):
 
     compose: ComposeFile
     name: ServiceName
@@ -377,24 +285,26 @@ class ComposeContainer:
     def depends_on(self) -> Sequence[ComposeContainer]:
         return [self.compose.services[name] for name in self.base.get("depends_on", [])]
 
-    def exec(
+    def exec_cmd(
         self,
         command: CommandArgs,
         check: bool = True,
-        workdir: Optional[str] = None,
+        capture_stdout: bool = False,
+        work_dir: Optional[PurePath] = None,
     ) -> CompletedExec:
-        return self.compose.podman.exec_podman(
+        return self.compose.podman.exec.exec_cmd(
             command=combine_cmds(
                 [
                     "container",
                     "exec",
                     "--interactive=false",
-                    None if workdir is None else f"--workdir={workdir}",
+                    None if work_dir is None else f"--workdir={work_dir}",
                     self.container_name,
                 ],
                 command,
             ),
             check=check,
+            capture_stdout=capture_stdout,
         )
 
 
