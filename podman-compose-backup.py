@@ -182,7 +182,7 @@ class VolumeBackupConfig:
                     "compress-cmd must be specified as it cannot be retrieved from decompress-cmd"
                 )
         else:
-            self.decompress_cmd = f"{self.compress_cmd} -d"
+            self.decompress_cmd = self.compress_cmd + " -d"
 
 
 @define(kw_only=True)
