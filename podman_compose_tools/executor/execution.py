@@ -3,8 +3,6 @@ from functools import cached_property
 from pathlib import PurePath
 from typing import Callable, Optional
 
-from attrs import define
-
 from .base import CommandArgs, ShellCommandStr
 from .completed import CompletedExec
 
