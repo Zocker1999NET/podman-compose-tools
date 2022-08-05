@@ -60,6 +60,7 @@ from podman_compose_tools.executor import (
     CompletedExec,
     ExecutorTarget,
     HostExecutor,
+    ShellCommand,
 )
 from podman_compose_tools.executor.base import (
     combine_cmds,
@@ -137,6 +138,11 @@ def parse_bool(val: str | bool) -> bool:
 # === code
 
 
+# required because of mypy attrs converter restrictions
+def shell_cmd_from_str(command: str) -> ShellCommand:
+    return ShellCommand.from_str(command=command)
+
+
 @define(kw_only=True)
 class VolumeBackupConfig:
     # === Backups
@@ -145,12 +151,24 @@ class VolumeBackupConfig:
     image: str = field(default=DEFAULT_BACKUP_IMAGE)
     mount_target: str = field(default=DEFAULT_MOUNT_TARGET)
     stop: bool = field(converter=parse_bool, default=False)
-    backup_cmd: str = field(default=DEFAULT_BACKUP_CMD)
-    restore_cmd: str = field(default=DEFAULT_RESTORE_CMD)
+    backup_cmd: ShellCommand = field(
+        converter=shell_cmd_from_str,
+        default=shell_cmd_from_str(DEFAULT_BACKUP_CMD),
+    )
+    restore_cmd: ShellCommand = field(
+        converter=shell_cmd_from_str,
+        default=shell_cmd_from_str(DEFAULT_RESTORE_CMD),
+    )
     # === Compressing
     compress_image: Optional[str] = field(default=None)
-    compress_cmd: Optional[str] = field(default=None)
-    decompress_cmd: Optional[str] = field(default=None)
+    compress_cmd: Optional[ShellCommand] = field(
+        converter=shell_cmd_from_str,
+        default=None,
+    )
+    decompress_cmd: Optional[ShellCommand] = field(
+        converter=shell_cmd_from_str,
+        default=None,
+    )
 
     @classmethod
     def from_labels(cls, labels: LabelDict) -> VolumeBackupConfig:

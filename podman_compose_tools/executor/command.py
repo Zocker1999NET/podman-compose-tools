@@ -124,6 +124,12 @@ class ShellCommand(Command):
 
         return decorated
 
+    @classmethod
+    def from_str(cls, command: str) -> ShellCommand:
+        return cls(
+            command=command,
+        )
+
     @_extract_other
     def __or__(self, other_cmd: str) -> str:  # |
         return f"({self.command}) | ({other_cmd})"
